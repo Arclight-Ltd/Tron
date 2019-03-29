@@ -1,0 +1,61 @@
+
+# 默认动作
+
+default :
+	..\..\..\tools\make.exe make run
+
+# 文件生成规则
+
+%.gas : %.c Makefile
+	..\..\..\tools\cc1.exe -I ..\..\..\tools\haribote -Os -Wall -quiet -o $*.gas $*.c
+
+%.nas : %.gas Makefile
+	..\..\..\tools\gas2nask.exe -a $*.gas $*.nas
+
+%.obj : %.nas Makefile
+	..\..\..\tools\nask.exe $*.nas $*.obj $*.lst
+				
+	
+$(APP).bim : $(APP).obj ..\API\API.lib Makefile ../app_make.txt
+	..\..\..\tools\obj2bim.exe @..\..\..\tools\haribote\haribote.rul out:$(APP).bim map:$(APP).map stack:$(STACK) \
+		$(APP).obj ..\API\API.lib
+
+$(APP).hrb : $(APP).bim Makefile ../app_make.txt
+		..\..\..\tools\bim2hrb.exe $(APP).bim $(APP).hrb $(MALLOC)
+
+Tron.img : ..\TRON\guide.bin ..\TRON\Tron.sys $(APP).hrb Makefile
+	..\..\..\tools\edimg.exe   imgin:..\..\..\tools\fdimg0at.tek \
+		wbinimg src:..\TRON\guide.bin len:512 from:0 to:0 \
+		copy from:..\TRON\Tron.sys to:@: \
+		copy from:..\TRON\assembly.nas to:@: \
+		copy from:..\TRON\console.obj to:@: \
+		copy from:$(APP).hrb to:@: \
+		imgout:Tron.img
+
+# 命令
+
+make :	
+	..\..\..\tools\make.exe -C ..\API
+	..\..\..\tools\make.exe $(APP).hrb
+
+run :
+	..\..\..\tools\make.exe make
+	..\..\..\tools\make.exe -C ..\TRON	make
+	..\..\..\tools\make.exe  Tron.img
+	copy Tron.img ..\..\..\tools\qemu\fdimage0.bin
+	..\..\..\tools\make.exe -r -C ..\..\..\tools\qemu
+
+clean :
+	
+	..\..\..\tools\make.exe -C ..\API	del
+	-del *.bim
+	-del *.hrb
+	-del *.lst
+	-del *.map
+	-del *.obj
+
+del:	
+	..\..\..\tools\make.exe -C ..\TRON 	del
+	..\..\..\tools\make.exe			clean
+	-del Tron.img
+
